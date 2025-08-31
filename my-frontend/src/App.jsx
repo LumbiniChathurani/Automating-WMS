@@ -2,7 +2,8 @@
 import { useState } from "react";
 
 function App() {
-  const [data, setData] = useState([]);
+  const [sheets, setSheets] = useState([]); // all sheets with data
+  const [selectedSheet, setSelectedSheet] = useState(""); // current sheet name
   const [loading, setLoading] = useState(false);
 
   const handleFileUpload = async (e) => {
@@ -21,14 +22,20 @@ function App() {
       });
       const json = await res.json();
 
-      // ✅ Only take the 'data' array from backend response
-      setData(json.data || []);
+      // ✅ Save all sheets in state
+      if (json.sheets) {
+        setSheets(json.sheets);
+        setSelectedSheet(json.sheets[0].name); // default to first sheet
+      }
     } catch (error) {
       console.error("Error uploading file:", error);
     } finally {
       setLoading(false);
     }
   };
+
+  // Get currently selected sheet's data
+  const currentSheet = sheets.find((s) => s.name === selectedSheet);
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center p-6">
@@ -49,13 +56,33 @@ function App() {
 
       {loading && <p className="mt-4 text-gray-600">Processing file...</p>}
 
+      {/* Sheet Selector */}
+      {sheets.length > 0 && (
+        <div className="mt-6">
+          <label className="mr-2 font-medium text-gray-700">
+            Select Sheet:
+          </label>
+          <select
+            value={selectedSheet}
+            onChange={(e) => setSelectedSheet(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+          >
+            {sheets.map((sheet) => (
+              <option key={sheet.name} value={sheet.name}>
+                {sheet.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Data Table */}
-      {data.length > 0 && (
+      {currentSheet && currentSheet.data.length > 0 && (
         <div className="mt-6 w-full max-w-4xl overflow-x-auto">
           <table className="w-full border-collapse border border-gray-300 bg-white shadow rounded-lg">
             <thead className="bg-purple-200">
               <tr>
-                {Object.keys(data[0]).map((key) => (
+                {Object.keys(currentSheet.data[0]).map((key) => (
                   <th
                     key={key}
                     className="border border-gray-300 px-4 py-2 text-left text-gray-700 font-semibold"
@@ -66,7 +93,7 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {data.map((row, i) => (
+              {currentSheet.data.map((row, i) => (
                 <tr key={i} className="hover:bg-gray-50">
                   {Object.values(row).map((val, j) => (
                     <td

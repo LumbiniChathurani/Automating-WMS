@@ -4,13 +4,14 @@ const XLSX = require("xlsx");
 const path = require("path");
 const multer = require("multer");
 const cors = require("cors");
+const fs = require("fs");
 
 const app = express();
 
 // Enable CORS (allow frontend to connect)
 app.use(
   cors({
-    origin: "http://localhost:5173", // change to 3000 if using CRA
+    origin: "http://localhost:5173", // change if your frontend runs elsewhere
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type"],
   })
@@ -27,13 +28,26 @@ app.post("/upload-excel", upload.single("file"), (req, res) => {
     // Path to uploaded file
     const filePath = path.join(__dirname, req.file.path);
 
-    // Read Excel file
+    // Read Excel workbook
     const workbook = XLSX.readFile(filePath);
-    const sheetName = workbook.SheetNames[0];
-    const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
-    // Send JSON response
-    res.json({ message: "File uploaded successfully", data });
+    // Build an array of { name, data } so the frontend dropdown works
+    const sheets = workbook.SheetNames.map((name) => ({
+      name,
+      data: XLSX.utils.sheet_to_json(workbook.Sheets[name], {
+        raw: false, // parse values (incl. dates)
+        dateNF: "yyyy-mm-dd", // date format
+      }),
+    }));
+
+    // Optional: clean up uploaded temp file
+    fs.unlink(filePath, () => {});
+
+    // Send JSON response that matches your frontend
+    res.json({
+      message: "File uploaded successfully",
+      sheets,
+    });
   } catch (err) {
     console.error("Error processing Excel file:", err);
     res.status(500).json({ error: "Failed to process Excel file" });
